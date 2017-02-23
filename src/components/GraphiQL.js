@@ -167,7 +167,17 @@ export class GraphiQL extends React.Component {
     if (nextSchema !== this.state.schema ||
         nextQuery !== this.state.query ||
         nextOperationName !== this.state.operationName) {
-      this._updateQueryFacts(nextQuery);
+      const updatedQueryAttributes = this._updateQueryFacts(
+        nextQuery,
+        nextOperationName,
+        nextSchema,
+      );
+
+      if (updatedQueryAttributes !== undefined) {
+        nextOperationName = updatedQueryAttributes.operationName;
+
+        this.setState({ ...updatedQueryAttributes.queryFacts });
+      }
     }
 
     // If schema is not supplied via props and the fetcher changed, then
@@ -650,7 +660,13 @@ export class GraphiQL extends React.Component {
 
   handleEditQuery = debounce(100, value => {
     if (this.state.schema) {
-      this._updateQueryFacts(value);
+      this.setState(
+        this._updateQueryFacts(
+          value,
+          this.state.operationName,
+          this.state.schema,
+        ),
+      );
     }
     this.setState({ query: value });
     if (this.props.onEditQuery) {
@@ -658,26 +674,23 @@ export class GraphiQL extends React.Component {
     }
   })
 
-  _updateQueryFacts = query => {
-    const queryFacts = getQueryFacts(this.state.schema, query);
+  _updateQueryFacts = (query, operationName, schema) => {
+    const queryFacts = getQueryFacts(schema, query);
     if (queryFacts) {
       // Update operation name should any query names change.
-      const operationName = getSelectedOperationName(
+      const updatedOperationName = getSelectedOperationName(
         this.state.operations,
-        this.state.operationName,
+        operationName,
         queryFacts.operations
       );
 
       // Report changing of operationName if it changed.
       const onEditOperationName = this.props.onEditOperationName;
-      if (onEditOperationName && operationName !== this.state.operationName) {
-        onEditOperationName(operationName);
+      if (onEditOperationName && operationName !== updatedOperationName) {
+        onEditOperationName(updatedOperationName);
       }
 
-      this.setState({
-        operationName,
-        ...queryFacts
-      });
+      return { operationName: updatedOperationName, ...queryFacts };
     }
   }
 
